@@ -1,0 +1,148 @@
+#!/bin/sh
+
+## hyphop ##
+
+##
+
+CNF=/proc/acpi/nvhda
+
+BIN=$0
+PROG=`basename $0`
+ARG=$1
+
+about(){
+    echo "\
+$PROG - nvhda nvidia hdmi audio power on / off manager
+
+USAGE
+	$PROG [enable|disable|restart]
+
+SOURCE
+	https://github.com/hyphop/nvidia-hdmi-power-manager
+
+LINKS
+	https://github.com/hhfeuer/nvhda
+
+SYMLINKS
+
+	add some usefull symlinks
+
+	audio-hdmi		-> nvidia-hdmi-audio-power
+	audio-hdmi-enable	-> nvidia-hdmi-audio-power
+	audio-hdmi-disable	-> nvidia-hdmi-audio-power
+	audio-hdmi-restart	-> nvidia-hdmi-audio-power
+
+AUTHOR
+	## hyphop ## 2018
+"
+}
+
+permup(){
+
+# need root perms
+
+[ "$USER" != "root" ] && {
+    echo "[i] sudo $BIN $@" >&2
+    sudo "$BIN" "$@"
+    exit 0
+}
+
+}
+
+chkmod(){
+
+[ -f $CNF ] || {
+
+    modinfo nvhda >/dev/null 2>&1 || {
+
+    echo "[i] plz install NVHDA krenel module
+	https://github.com/hhfeuer/nvhda"
+    exit 1
+
+    }
+
+    permup $ARG
+
+    modprobe nvhda || exit 1
+    chmod 0777 $CNF
+
+    exit 0
+
+}
+
+}
+
+
+disable() {
+    echo "[i] try $CNF - turn OFF"
+    chkmod
+    echo OFF > $CNF
+}
+
+enable() {
+    echo "[i] try $CNF - turn ON"
+    chkmod
+    echo ON > $CNF
+}
+
+unload(){
+    permup $ARG
+    rmmod nvhda
+}
+
+
+state() {
+
+    [ -f $CNF ] && {
+    echo "[i] state: $CNF - $(grep -o -P "ON|OFF" $CNF)"
+    exit 0
+    } 
+
+    echo "[i] state - moudule not loaded / try: $0 on"
+
+}
+
+restart() {
+    echo "[i] try $CNF - restart"
+    chkmod
+    echo OFF > $CNF
+    echo "[i] plz wait 1 sec"
+    sleep 1
+    echo ON > $CNF
+    state
+}
+
+CMD="$0.$1"
+
+echo "$CMD"
+
+case $CMD in
+    *enable*)
+    enable
+    ;;
+    *disable*)
+    disable
+    ;;
+    *on*)
+    enable
+    ;;
+    *off*)
+    disable
+    ;;
+    *restart*)
+    restart
+    ;;
+    *state|status)
+    state
+    ;;
+    *unload)
+    unload
+    ;;
+    *)
+    [ "$1" ] || {
+    state
+    exit 0
+    }
+    about
+    ;;
+esac
